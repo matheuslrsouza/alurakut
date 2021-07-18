@@ -6,6 +6,8 @@ import { ProfileRelationsBoxWrapper } from '../src/components/ProfileRelations'
 
 import { AlurakutMenu, AlurakutStyles, OrkutNostalgicIconSet } from '../src/lib/AlurakutCommons'
 import React, { useEffect, useState } from 'react'
+import nookies from 'nookies';
+import jwt from 'jsonwebtoken';
 
 const Title = styled.h1`
   font-size: 50px;
@@ -35,13 +37,13 @@ function BoxProfile(props) {
     )
 }
 
-export default function Home() {
+export default function Home(props) {
     const [seguidores, setSeguidores] = useState([]);
 
     const [comunidades, setComunidades] = useState([]);
 
     useEffect(async () => {
-        const response = await fetch(`https://api.github.com/users/matheuslrsouza/followers`)
+        const response = await fetch(`https://api.github.com/users/${props.githubUser}/followers`)
         if (!response.ok) throw Error('falha ao buscar seguidores')
 
         const data = await response.json();
@@ -68,7 +70,7 @@ export default function Home() {
                 query: `{
                     allComunidades (
                       filter: {
-                        dono: {eq: "matheuslrsouza"}
+                        dono: {eq: ${props.githubUser}}
                       }
                     ) {
                       id
@@ -93,11 +95,11 @@ export default function Home() {
 
     return (
         <>
-            <AlurakutMenu githubUser='matheuslrsouza' />
+            <AlurakutMenu githubUser={props.githubUser} />
             <MainGrid>
                 <div className="profileArea" style={{ gridArea: 'profileArea' }}>
                     <Box>
-                        <img src={`https://github.com/matheuslrsouza.png`} style={{ borderRadius: '8px' }} />
+                        <img src={`https://github.com/${props.githubUser}.png`} style={{ borderRadius: '8px' }} />
                     </Box>
                 </div>
                 <div className="welcomeArea" style={{ gridArea: 'welcomeArea' }}>
@@ -164,3 +166,33 @@ export default function Home() {
         </>
     )
 }
+
+export async function getServerSideProps(context) {
+    const TOKEN = nookies.get(context).GITHUB_TOKEN;
+
+    // verifica se o token é válido
+    const resp = await fetch('https://alurakut.vercel.app/api/auth', {
+        headers: {
+            Authorization: TOKEN
+        }
+    });
+    const { isAuthenticated } = await resp.json();
+
+    if (!isAuthenticated) {
+        return {
+            redirect: {
+                destination: '/login',
+                permanent: false,
+            },        
+          }
+    }
+
+    const githubUser = jwt.decode(TOKEN).githubUser;
+
+    return {
+      props: {
+          githubUser: githubUser
+      }, // Will be passed to the page component as props
+    }
+}
+  
