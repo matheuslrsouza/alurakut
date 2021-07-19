@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import styled, { css } from 'styled-components';
 import NextLink from 'next/link';
+import useDebounce from './useDebounce';
+import { getUsuarios } from '../services/GitHubService';
+import { useRouter } from 'next/router';
 
 const BASE_URL = 'http://alurakut.vercel.app/';
 const v = '1';
@@ -21,6 +24,50 @@ function Link({ href, children, ...props }) {
 // ================================================================================================================
 export function AlurakutMenu({ githubUser, handleLogout }) {
   const [isMenuOpen, setMenuState] = React.useState(false);
+  const [termoPesquisa, setTermoPesquisa] = React.useState('');
+  const [termoAposDebounce, setTermoAposDebounce] = React.useState('');
+  const [usuarios, setUsuarios] = React.useState(null);
+  const router = useRouter();
+  
+  const controlador = useDebounce(pesquisar, 1000);
+
+  function handlePesquisa(e) {
+    setTermoPesquisa(e.target.value);
+    controlador(e.target.value);
+  }
+
+  // executado somente 1s depois que o usuário parar de digitar
+  function pesquisar(termo) {
+    setTermoAposDebounce(termo);
+  }
+
+  // busca usuarios por termpo pesquisado
+  useEffect(async () => {
+    if (!termoAposDebounce) {
+        return;
+    }
+
+    const response = await getUsuarios(termoAposDebounce);
+
+    const data = await response.json();
+    const usuariosGit = {
+      total: data.total_count,
+      items: []
+    };
+    data.items.forEach((usuario) => {
+        usuariosGit.items.push({
+            login: usuario.login, 
+            avatarUrl: usuario.avatar_url,
+        });
+    });
+    setUsuarios(usuariosGit);
+  }, [termoAposDebounce])
+
+  function handleSelecionaItemPesquisa(usuarioGithub) {
+    setUsuarios(null);
+    router.push(`/profile/${usuarioGithub}`);
+  }
+
   return (
     <AlurakutMenu.Wrapper isMenuOpen={isMenuOpen}>
       <div className="container">
@@ -39,7 +86,42 @@ export function AlurakutMenu({ githubUser, handleLogout }) {
             Sair
           </a>
           <div>
-            <input placeholder="Pesquisar no Orkut" />
+            {/* <input placeholder="Pesquisar no Orkut" /> */}
+
+            <form autoComplete="off">
+              <div className="autocomplete" style={{width:'300px'}}>
+                <input type="text" 
+                  placeholder="Pesquisar no GitHub" 
+                  value={termoPesquisa}
+                  onChange={handlePesquisa}
+                />
+                <div className="autocomplete-items">
+                  {usuarios ? 
+                    usuarios.items.map(usuario => {
+                      return (
+                        <div 
+                          onClick={() => handleSelecionaItemPesquisa(usuario.login)}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 3fr',
+                          }}
+                        >
+                          <div>
+                            <img style={{borderRadius: '25px'}}
+                              src={usuario.avatarUrl} />
+                          </div>
+                          <div>
+                            @<strong>{termoAposDebounce}</strong>
+                            {usuario.login.replace(termoAposDebounce, "")}
+                            <input type="hidden" value={usuario.login}/>
+                          </div>
+                        </div>)
+                    }) : null
+                  }
+                </div>
+              </div>
+            </form>
+
           </div>
         </nav>
 

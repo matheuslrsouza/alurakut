@@ -5,6 +5,7 @@ import Box from '../../components/Box'
 import MainGrid from '../../components/MainGrid'
 import { ProfileRelationsBoxWrapper } from '../../components/ProfileRelations'
 import { AlurakutMenu, AlurakutProfileSidebarMenuDefault, OrkutNostalgicIconSet } from '../../lib/AlurakutCommons'
+import { comunidadesDoUsuario, recadosDoUsuario } from '../../services/DatoService'
 import { getSeguidores } from '../../services/GitHubService'
 
 function ProfileSidebar(props) {
@@ -48,61 +49,90 @@ function BoxProfile(props) {
     )
 }
 
-function Recados(props) {
+function RecadosForm(props) {
     return (
         <Box>
-            <h2 className="subTitle">Deixe um recador para o @{props.githubUser}</h2>
-            {/* <form onSubmit={async (e) => {
+            <h2 className="subTitle">Deixe um recado para o @{props.githubUser}</h2>
+            {<form onSubmit={async (e) => {
                     e.preventDefault();
                     const data = new FormData(e.target);
-                    const novaComunidade = {
-                        titulo: data.get('title'), 
-                        urlImagem: data.get('image')
+                    const novoRecado = {
+                        mensagem: data.get('mensagem'),
+                        usuarioQueEnviou: props.loggedUser,
+                        urlFotoUsuarioQueEscreveu: props.urlImagemLoggedUser,
+                        usuarioQueRecebeu: props.githubUser,
                     };
                     
-                    const resp = await fetch('/api/comunidade', {
+                    const resp = await fetch('/api/datocms/979188', {
                         method: 'POST', 
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify(novaComunidade)
+                        body: JSON.stringify(novoRecado)
                     });
 
                     if (resp.ok) {
-                        const comunidadesAtualizadas = [...comunidades, record];
-                        setComunidades(comunidadesAtualizadas);
+                        const record = await resp.json();
+                        const recadosAtualizadas = [...props.recados, {...novoRecado, id: record.data.id}];
+                        props.setRecados(recadosAtualizadas);
                     } else {
                         console.error(resp);
                     }
                 }}>
                 <div>
-                    <input
+                    <textarea
+                        style={{width: '100%', minHeight: '100px'}}
                         required={true}
-                        placeholder="Qual vai ser o nome da sua comunidade?"
-                        name="title"
-                        aria-label="Qual vai ser o nome da sua comunidade?"
+                        placeholder="Deixe sua mensagem! Se desejar, utilize tags <html>"
+                        name="mensagem"
+                        aria-label="Deixe sua mensagem! Se desejar, utilize tags <html>"
                         type="text"
-                    />
-                </div>
-                <div>
-                    <input
-                        required={true}
-                        placeholder="Coloque uma URL para usarmos de capa"
-                        name="image"
-                        aria-label="Coloque uma URL para usarmos de capa"
                     />
                 </div>
 
                 <button>
-                    Criar comunidade
+                    Deixar recado
                 </button>
-            </form> */}
+            </form>}
 
         </Box>
     )
 }
 
-function Comunidades(props) {
+function RecadosList(props) {
+    return (
+        <Box>
+            <h2 className="subTitle">Recados que o @{props.githubUser} já recebeu:</h2>
+            <ul>
+                {props.items.map((item) => {
+                    return (
+                        <li key={item.id} style={{
+                            display: 'grid',
+                            gridGap: '8px',
+                            gridTemplateColumns: '1fr 4fr',
+                            listStyle: 'none',
+                        }}>
+                            <a>
+                                <img src={item.urlFotoUsuarioQueEscreveu} />
+                            </a>
+                            <span>
+                                {item.mensagem.indexOf('</') !== -1
+                                ? (
+                                    <div dangerouslySetInnerHTML={{__html: item.mensagem.replace(/(<? *script)/gi, 'illegalscript')}} >
+                                    </div>
+                                  )
+                                : item.mensagem
+                                }
+                            </span>
+                        </li>
+                    )
+                })}
+            </ul>
+        </Box>
+    )
+}
+
+function ComunidadesForm(props) {
     return (
         <Box>
             <h2 className="subTitle">Crie uma comunidade!</h2>
@@ -125,7 +155,6 @@ function Comunidades(props) {
 
                     if (resp.ok) {
                         const record = await resp.json();
-
                         const comunidadesAtualizadas = [...props.comunidades, {...novaComunidade, key: record.data.id}];
                         props.setComunidades(comunidadesAtualizadas);
                     } else {
@@ -163,6 +192,7 @@ export default function MainPage(props) {
     const router = useRouter();
     const [seguidores, setSeguidores] = useState([]);
     const [comunidades, setComunidades] = useState([]);
+    const [recados, setRecados] = useState([]);
 
     useEffect(async () => {
         if (!props.githubUser) {
@@ -185,31 +215,13 @@ export default function MainPage(props) {
         if (!props.githubUser) {
             return;
         }
-        const response = await fetch('https://graphql.datocms.com/',
-        {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${process.env.NEXT_PUBLIC_DATOCMS_READ_TOKEN}`,
-            },
-            body: JSON.stringify({
-                query: `{
-                    allComunidades (
-                      filter: {
-                        dono: {eq: ${props.githubUser}}
-                      }
-                    ) {
-                      id
-                      titulo
-                      urlImagem
-                    }
-                }`
-            }),
-        }).catch((error) => {
-            console.log('ocorreu um erro', error);
-        });
+        const response = await comunidadesDoUsuario(props.githubUser);
+            
         const json = await response.json();
+        if (json.errors) {
+            console.error(json.errors);
+            return;
+        }
         const comunidadesDato = json.data.allComunidades.map(c => {
             return {
                 key: c.id, 
@@ -218,6 +230,21 @@ export default function MainPage(props) {
             }
         });
         setComunidades(comunidadesDato);
+    }, [props.githubUser]);
+
+    useEffect(async () => {
+        if (!props.githubUser) {
+            return;
+        }
+        const response = await recadosDoUsuario(props.githubUser);
+        const json = await response.json();
+        console.log('recados', json);
+        if (json.errors) {
+            console.error(json.errors);
+            return;
+        }
+        
+        setRecados(json.data.allRecados);
     }, [props.githubUser]);
 
     function handleProfileSeguidor(githubUser) {        
@@ -237,19 +264,26 @@ export default function MainPage(props) {
                             {props.githubUserInfo.name}
                         </h1>
 
-                        <OrkutNostalgicIconSet />
+                        <OrkutNostalgicIconSet recados={recados.length} />
                     </Box>
                     {props.githubUser === props.loggedUser ? 
-                        <Comunidades 
+                        <ComunidadesForm 
                             comunidades={comunidades} 
                             setComunidades={setComunidades} 
                             loggedUser={props.loggedUser}
                         /> : null
                     }
 
-                    {props.githubUser !== props.loggedUser ? 
-                        <Recados githubUser={props.githubUser} /> : null
-                    }
+                    <RecadosForm                         
+                        setRecados={setRecados}
+                        recados={recados}
+                        loggedUser={props.loggedUser}
+                        urlImagemLoggedUser={props.loggedUserInfo.avatar_url}
+                        githubUser={props.githubUser}
+                    />
+                    <RecadosList 
+                        items={recados} 
+                        githubUser={props.githubUser}/>
 
                 </div>
                 <div className="profileRelationsArea" style={{ gridArea: 'profileRelationsArea' }}>

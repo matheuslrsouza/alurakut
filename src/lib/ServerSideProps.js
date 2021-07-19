@@ -28,8 +28,7 @@ export async function handleServerSideProps(context) {
         console.log(userInfo);
         return {
             props: {
-                githubUser: githubUser,
-                githubUserInfo: userInfo, 
+                loggedUserInfo: userInfo, 
                 loggedUser: githubUser
             }, // Will be passed to the page component as props
         }
