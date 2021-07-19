@@ -25,6 +25,7 @@ export async function handleServerSideProps(context) {
             throw Error();
         }
         const userInfo = await respUser.json();
+        console.log(userInfo);
         return {
             props: {
                 githubUser: githubUser,
