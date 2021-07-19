@@ -28,7 +28,8 @@ export default function ProfilePage(props) {
     return <MainPage 
                 githubUserInfo={model.githubUserInfo} 
                 githubUser={model.githubUser} 
-                loggedUser={props.loggedUser} />;
+                loggedUser={props.loggedUser}
+                loggedUserInfo={props.loggedUserInfo} />;
 }
 
 export async function getServerSideProps(context) {

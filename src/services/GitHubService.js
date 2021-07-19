@@ -15,3 +15,7 @@ export async function isUsuarioValido(githubUser) {
     const response = await getUsuario(githubUser);
     return response.ok;
 }
+
+export async function getUsuarios(termo) {
+    return fetch(`https://api.github.com/search/users?q=${termo}&page=1&per_page=7`);
+}

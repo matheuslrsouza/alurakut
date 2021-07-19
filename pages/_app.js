@@ -1,5 +1,6 @@
 import { createGlobalStyle, ThemeProvider } from 'styled-components'
 import { AlurakutStyles } from '../src/lib/AlurakutCommons';
+import { AutocompleteStyles } from '../src/lib/Autocomplete';
 
 const GlobalStyle = createGlobalStyle`
   /* Reset CSS (Necolas Reset CSS <3) */
@@ -23,6 +24,8 @@ const GlobalStyle = createGlobalStyle`
     display: block;
   }
   ${AlurakutStyles}
+
+  ${AutocompleteStyles}
 `
 
 const theme = {
