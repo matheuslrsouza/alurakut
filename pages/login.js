@@ -4,9 +4,14 @@ import { useRouter } from 'next/router';
 import { useState } from 'react';
 import nookies from 'nookies';
 
+import { isUsuarioValido } from '../src/services/GitHubService'
+
 export default function LoginScreen() {
   const router = useRouter();
-  const [githubUser, setGithubUser] = useState('matheuslrsouza');
+  const [model, setModel] = useState({
+    githubUser: 'matheuslrsouza',
+    error: ''
+  });
 
   return (
     <main style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -22,13 +27,19 @@ export default function LoginScreen() {
         <section className="formArea">
           <form className="box" onSubmit={async (e) => {
                 e.preventDefault();
+                const isValido = await isUsuarioValido(model.githubUser);
+
+                if (!isValido) {
+                    setModel({...model, error: `Usuário ${model.githubUser} não encontrado!`});
+                    return;
+                }
 
                 const resp = await fetch('https://alurakut.vercel.app/api/login', {
                     method: 'POST',
                     headers: {
                        'Content-Type': 'application/json'  
                     },
-                    body: JSON.stringify({ githubUser: githubUser })
+                    body: JSON.stringify({ githubUser: model.githubUser })
                 });
                 const data = await resp.json();
                 nookies.set(null, 'GITHUB_TOKEN', data.token);
@@ -36,12 +47,15 @@ export default function LoginScreen() {
           }}>
             <p>
               Acesse agora mesmo com seu usuário do <strong>GitHub</strong>!
-          </p>
-            <input
-                placeholder="Usuário"
-                value={githubUser}
-                onChange={(e) => setGithubUser(e.target.value)}
-            />            
+            </p>
+            <input                
+                placeholder="Usuário GitHub"
+                value={model.githubUser}
+                onChange={(e) => {
+                    setModel({...model, githubUser: e.target.value});
+                }}                
+            />
+            <span style={{color: "red"}}>{model.error}</span>
             <button type="submit">
               Login
             </button>
